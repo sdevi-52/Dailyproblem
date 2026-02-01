@@ -4,7 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Olympiad OS</title>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                enableMenu: false
+            }
+        };
+    </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
     <style>
@@ -57,6 +67,7 @@
             line-height: 1.7;
             min-height: 200px;
             font-size: 1.1rem;
+            white-space: pre-wrap; /* Maintains line breaks for solutions */
         }
 
         .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; }
@@ -117,7 +128,7 @@
         <div id="display-mode">
             <h1 id="p-title">System Loading...</h1>
             <div class="problem-display" id="math-area">
-                <p id="p-text">Decrypting data...</p>
+                <div id="p-text">Decrypting data...</div>
                 <small id="p-source" style="display:block; margin-top:20px; color: var(--secondary)"></small>
             </div>
             
@@ -142,7 +153,6 @@
     </div>
 
 <script>
-    // PRE-LOADED SAMPLES
     const defaultProblems = [
         {
             title: "Number Theory",
@@ -153,18 +163,11 @@
         {
             title: "Algebraic Identity",
             text: "Let $a, b, c$ be real numbers. If $a+b+c=0$, prove that: $$a^3 + b^3 + c^3 = 3abc$$",
-            solution: "Use the identity $a^3+b^3+c^3-3abc = (a+b+c)(a^2+b^2+c^2-ab-bc-ca)$. If $a+b+c=0$, the RHS is 0.",
+            solution: "Use the identity $a^3+b^3+c^3-3abc = (a+b+c)(a^2+b^2+c^2-ab-bc-ca)$. If $a+b+c=0$, the RHS is $0$.",
             source: "Classical Algebra"
-        },
-        {
-            title: "Geometry",
-            text: "In a triangle $ABC$, if $\angle A = 90^\circ$, prove that $BC^2 = AB^2 + AC^2$.",
-            solution: "This is the Pythagorean Theorem. Can be proven via similar triangles or area dissection.",
-            source: "Euclidean Basics"
         }
     ];
 
-    // Load from memory OR use defaults
     let problems = JSON.parse(localStorage.getItem('olympiad_db')) || defaultProblems;
     let isShowingSolution = false;
     let currentProblem = null;
@@ -180,7 +183,7 @@
 
     function renderProblem() {
         document.getElementById('p-title').innerText = currentProblem.title;
-        document.getElementById('p-text').innerText = currentProblem.text;
+        document.getElementById('p-text').innerHTML = currentProblem.text;
         document.getElementById('p-source').innerText = `Origin: ${currentProblem.source}`;
         refreshMath();
     }
@@ -191,11 +194,11 @@
         const btn = document.getElementById('sol-btn');
         
         if (!isShowingSolution) {
-            textEl.innerText = "SOLUTION:\n" + currentProblem.solution;
+            textEl.innerHTML = "<strong>SOLUTION:</strong><br>" + currentProblem.solution;
             textEl.style.color = "var(--success)";
             btn.innerText = "Return to Problem";
         } else {
-            textEl.innerText = currentProblem.text;
+            textEl.innerHTML = currentProblem.text;
             textEl.style.color = "var(--text)";
             btn.innerText = "Reveal Logic";
         }
@@ -204,8 +207,8 @@
     }
 
     function refreshMath() {
-        if (window.MathJax) {
-            MathJax.typesetPromise();
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise().catch((err) => console.log(err));
         }
     }
 
@@ -218,7 +221,6 @@
         };
         if (!p.title || !p.text) return;
         
-        // If it's the first time adding, we might want to keep the defaults too
         problems.push(p);
         localStorage.setItem('olympiad_db', JSON.stringify(problems));
         alert("Synced to local storage!");
