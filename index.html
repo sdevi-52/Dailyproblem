@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Olympiad OS</title>
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --card: #161b22;
+            --accent: #7dd3fc;
+            --secondary: #334155;
+            --text: #e2e8f0;
+            --success: #34d399;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .widget {
+            background: var(--card);
+            width: 100%;
+            max-width: 450px;
+            padding: 2rem;
+            border-radius: 28px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+
+        .os-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 2rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+        }
+
+        h1 { font-size: 1.8rem; margin: 0; color: var(--accent); }
+        
+        .problem-display {
+            margin: 1.5rem 0;
+            line-height: 1.7;
+            min-height: 180px;
+            font-size: 1.1rem;
+        }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 1rem; }
+
+        button {
+            flex: 1;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.primary { background: var(--accent); color: var(--bg); }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* Admin Section */
+        .admin-panel {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 450px;
+            background: rgba(255,255,255,0.03);
+            padding: 1.5rem;
+            border-radius: 20px;
+            display: none;
+        }
+
+        input, textarea {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--secondary);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .footer-tools {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: var(--secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="widget">
+        <div class="os-header">
+            <span id="os-date">System Active</span>
+            <span>v1.0.4</span>
+        </div>
+
+        <div id="display-mode">
+            <h1 id="p-title">No Problems Found</h1>
+            <div class="problem-display">
+                <p id="p-text">Tap "Add Problem" below to populate your system.</p>
+                <small id="p-source" style="color: var(--secondary)"></small>
+            </div>
+            
+            <div class="btn-group">
+                <button class="primary" onclick="toggleSolution()" id="sol-btn">Reveal Logic</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-tools" onclick="document.getElementById('admin').style.display='block'">
+        ⚙️ Enter Creator Mode
+    </div>
+
+    <div id="admin" class="admin-panel">
+        <h3 style="margin-top:0">Add New Problem</h3>
+        <input type="text" id="new-title" placeholder="Problem Title (e.g. Geometry)">
+        <textarea id="new-text" rows="4" placeholder="Problem Statement..."></textarea>
+        <textarea id="new-sol" rows="3" placeholder="Solution..."></textarea>
+        <input type="text" id="new-source" placeholder="Source (e.g. IMO 2024)">
+        <button class="primary" onclick="saveProblem()">Save to System</button>
+        <button onclick="document.getElementById('admin').style.display='none'" style="margin-top:5px">Close</button>
+    </div>
+
+<script>
+    let problems = JSON.parse(localStorage.getItem('olympiad_db')) || [];
+    let isShowingSolution = false;
+    let currentProblem = null;
+
+    function init() {
+        const today = new Date();
+        document.getElementById('os-date').innerText = today.toDateString();
+        
+        if (problems.length > 0) {
+            const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+            currentProblem = problems[dayOfYear % problems.length];
+            renderProblem();
+        }
+    }
+
+    function renderProblem() {
+        document.getElementById('p-title').innerText = currentProblem.title;
+        document.getElementById('p-text').innerText = currentProblem.text;
+        document.getElementById('p-source').innerText = `Origin: ${currentProblem.source}`;
+    }
+
+    function toggleSolution() {
+        if (!currentProblem) return;
+        const textEl = document.getElementById('p-text');
+        const btn = document.getElementById('sol-btn');
+        
+        if (!isShowingSolution) {
+            textEl.innerText = "SOLUTION:\n" + currentProblem.solution;
+            textEl.style.color = "var(--success)";
+            btn.innerText = "Return to Problem";
+        } else {
+            textEl.innerText = currentProblem.text;
+            textEl.style.color = "var(--text)";
+            btn.innerText = "Reveal Logic";
+        }
+        isShowingSolution = !isShowingSolution;
+    }
+
+    function saveProblem() {
+        const p = {
+            title: document.getElementById('new-title').value,
+            text: document.getElementById('new-text').value,
+            solution: document.getElementById('new-sol').value,
+            source: document.getElementById('new-source').value
+        };
+
+        if (!p.title || !p.text) return alert("Fill in the title and text!");
+
+        problems.push(p);
+        localStorage.setItem('olympiad_db', JSON.stringify(problems));
+        alert("Problem synced to local storage!");
+        location.reload();
+    }
+
+    init();
+</script>
+</body>
+</html>
