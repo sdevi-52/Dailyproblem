@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Olympiad OS</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
     <style>
         :root {
             --bg: #0b0e14;
@@ -29,12 +32,11 @@
         .widget {
             background: var(--card);
             width: 100%;
-            max-width: 450px;
+            max-width: 500px;
             padding: 2rem;
             border-radius: 28px;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.05);
-            position: relative;
         }
 
         .os-header {
@@ -53,11 +55,11 @@
         .problem-display {
             margin: 1.5rem 0;
             line-height: 1.7;
-            min-height: 180px;
+            min-height: 200px;
             font-size: 1.1rem;
         }
 
-        .btn-group { display: flex; gap: 10px; margin-top: 1rem; }
+        .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; }
 
         button {
             flex: 1;
@@ -72,13 +74,12 @@
         }
 
         button.primary { background: var(--accent); color: var(--bg); }
-        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button:hover { opacity: 0.9; }
 
-        /* Admin Section */
         .admin-panel {
             margin-top: 2rem;
             width: 100%;
-            max-width: 450px;
+            max-width: 500px;
             background: rgba(255,255,255,0.03);
             padding: 1.5rem;
             border-radius: 20px;
@@ -90,10 +91,11 @@
             background: var(--bg);
             border: 1px solid var(--secondary);
             color: white;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             margin-bottom: 10px;
             box-sizing: border-box;
+            font-family: monospace;
         }
 
         .footer-tools {
@@ -109,14 +111,14 @@
     <div class="widget">
         <div class="os-header">
             <span id="os-date">System Active</span>
-            <span>v1.0.4</span>
+            <span>Math-Ready v2.1</span>
         </div>
 
         <div id="display-mode">
-            <h1 id="p-title">No Problems Found</h1>
-            <div class="problem-display">
-                <p id="p-text">Tap "Add Problem" below to populate your system.</p>
-                <small id="p-source" style="color: var(--secondary)"></small>
+            <h1 id="p-title">System Loading...</h1>
+            <div class="problem-display" id="math-area">
+                <p id="p-text">Decrypting data...</p>
+                <small id="p-source" style="display:block; margin-top:20px; color: var(--secondary)"></small>
             </div>
             
             <div class="btn-group">
@@ -126,30 +128,51 @@
     </div>
 
     <div class="footer-tools" onclick="document.getElementById('admin').style.display='block'">
-        ⚙️ Enter Creator Mode
+        ⚙️ Open Terminal (Add Problem)
     </div>
 
     <div id="admin" class="admin-panel">
-        <h3 style="margin-top:0">Add New Problem</h3>
-        <input type="text" id="new-title" placeholder="Problem Title (e.g. Geometry)">
-        <textarea id="new-text" rows="4" placeholder="Problem Statement..."></textarea>
-        <textarea id="new-sol" rows="3" placeholder="Solution..."></textarea>
-        <input type="text" id="new-source" placeholder="Source (e.g. IMO 2024)">
-        <button class="primary" onclick="saveProblem()">Save to System</button>
-        <button onclick="document.getElementById('admin').style.display='none'" style="margin-top:5px">Close</button>
+        <h3 style="margin-top:0">Sync New Challenge</h3>
+        <input type="text" id="new-title" placeholder="Title">
+        <textarea id="new-text" rows="4" placeholder="Problem (use $ for LaTeX)"></textarea>
+        <textarea id="new-sol" rows="3" placeholder="Solution"></textarea>
+        <input type="text" id="new-source" placeholder="Source">
+        <button class="primary" onclick="saveProblem()">Upload to OS</button>
+        <button onclick="document.getElementById('admin').style.display='none'" style="margin-top:5px">Abort</button>
     </div>
 
 <script>
-    let problems = JSON.parse(localStorage.getItem('olympiad_db')) || [];
+    // PRE-LOADED SAMPLES
+    const defaultProblems = [
+        {
+            title: "Number Theory",
+            text: "Find all pairs of primes $(p, q)$ such that $p^q + q^p$ is also a prime number.",
+            solution: "The only solution is $(2, 3)$ or $(3, 2)$. If both are odd, the sum is even and $>2$. Check cases for $p=2$.",
+            source: "Introductory Olympiad"
+        },
+        {
+            title: "Algebraic Identity",
+            text: "Let $a, b, c$ be real numbers. If $a+b+c=0$, prove that: $$a^3 + b^3 + c^3 = 3abc$$",
+            solution: "Use the identity $a^3+b^3+c^3-3abc = (a+b+c)(a^2+b^2+c^2-ab-bc-ca)$. If $a+b+c=0$, the RHS is 0.",
+            source: "Classical Algebra"
+        },
+        {
+            title: "Geometry",
+            text: "In a triangle $ABC$, if $\angle A = 90^\circ$, prove that $BC^2 = AB^2 + AC^2$.",
+            solution: "This is the Pythagorean Theorem. Can be proven via similar triangles or area dissection.",
+            source: "Euclidean Basics"
+        }
+    ];
+
+    // Load from memory OR use defaults
+    let problems = JSON.parse(localStorage.getItem('olympiad_db')) || defaultProblems;
     let isShowingSolution = false;
     let currentProblem = null;
 
     function init() {
-        const today = new Date();
-        document.getElementById('os-date').innerText = today.toDateString();
-        
+        document.getElementById('os-date').innerText = new Date().toDateString();
         if (problems.length > 0) {
-            const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+            const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
             currentProblem = problems[dayOfYear % problems.length];
             renderProblem();
         }
@@ -159,6 +182,7 @@
         document.getElementById('p-title').innerText = currentProblem.title;
         document.getElementById('p-text').innerText = currentProblem.text;
         document.getElementById('p-source').innerText = `Origin: ${currentProblem.source}`;
+        refreshMath();
     }
 
     function toggleSolution() {
@@ -176,6 +200,13 @@
             btn.innerText = "Reveal Logic";
         }
         isShowingSolution = !isShowingSolution;
+        refreshMath();
+    }
+
+    function refreshMath() {
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
     }
 
     function saveProblem() {
@@ -185,12 +216,12 @@
             solution: document.getElementById('new-sol').value,
             source: document.getElementById('new-source').value
         };
-
-        if (!p.title || !p.text) return alert("Fill in the title and text!");
-
+        if (!p.title || !p.text) return;
+        
+        // If it's the first time adding, we might want to keep the defaults too
         problems.push(p);
         localStorage.setItem('olympiad_db', JSON.stringify(problems));
-        alert("Problem synced to local storage!");
+        alert("Synced to local storage!");
         location.reload();
     }
 
